@@ -32,7 +32,6 @@ new (class {
         ipcMain.handle('importPictures', this.importPictures.bind(this));
         ipcMain.handle('importPicturesFromResource', this.importPicturesFromResource.bind(this));
         ipcMain.handle('importPictureFromCanvas', this.importPictureFromCanvas.bind(this));
-        ipcMain.handle('captureBlockImage', this.captureBlockImage.bind(this));
         ipcMain.handle('importSounds', this.importSounds.bind(this));
         ipcMain.handle('importSoundsFromResource', this.importSoundsFromResource.bind(this));
         ipcMain.handle('createTableInfo', this.createTables.bind(this));
@@ -112,10 +111,6 @@ new (class {
     async importPictureFromCanvas(event: IpcMainInvokeEvent, data: ObjectLike[]) {
         logger.verbose('importPictureFromCanvas called');
         return await MainUtils.importPictureFromCanvas(data);
-    }
-
-    async captureBlockImage(event: IpcMainInvokeEvent, images: any, filePath: string) {
-        return await MainUtils.captureBlockImage(images, filePath);
     }
 
     async importSounds(event: IpcMainInvokeEvent, filePaths: string[]) {

@@ -320,23 +320,10 @@ class Workspace extends Component<IProps> {
     }
 
     async handleBlockImageSave(data: any) {
-        const images = data.images;
-        try {
-            RendererUtils.showOpenDialog({
-                properties: ['openDirectory'],
-                filters: [{ name: 'Image', extensions: ['png'] }],
-            }).then(async ({ filePaths }) => {
-                const dirPath = filePaths[0];
-                if (!dirPath) {
-                    throw 'invalid filePaths';
-                }
-                console.log(Constants.sep);
-                const savePath = `${dirPath}${Constants.sep}`;
-                await ipcRendererHelper.captureBlockImage(images, savePath);
-            });
-        } catch (err) {
-            console.error(err);
-        }
+        console.warn('Block image capture is disabled.');
+        EntryModalHelper.getAlertModal(
+            RendererUtils.getLang('Workspace.upload_not_supported_file_msg')
+        );
     }
 
     handleChangeWorkspaceMode() {
