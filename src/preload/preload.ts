@@ -1,8 +1,41 @@
-import { ipcRenderer, shell } from 'electron';
+import { ipcRenderer } from 'electron';
 import nativeMenu from './nativeMenu';
 import get from 'lodash/get';
 import path from 'path';
 const remote = require('@electron/remote');
+
+/**
+ * Electron-only APIs used in this module:
+ * - electron: ipcRenderer
+ * - @electron/remote: dialog, app, getGlobal
+ * - node: process.resourcesPath, process.platform
+ */
+
+type AndroidBridge = {
+    ipcInvoke?: (payload: string) => string | void;
+    ipcSend?: (payload: string) => void;
+    getSharedObject?: () => string | GlobalConfigurations;
+    openEntryWebPage?: () => void;
+    openHardwarePage?: () => void;
+    checkPermission?: (type: 'microphone' | 'camera') => void;
+    showOpenDialog?: (payload: string) => string;
+    showSaveDialog?: (payload: string) => string;
+    showSaveDialogSync?: (payload: string) => string;
+};
+
+const getAndroidBridge = (): AndroidBridge | undefined =>
+    (window as any).AndroidBridge || (window as any).Android;
+
+const parseBridgeResult = <T>(result: string | void): T => {
+    if (!result) {
+        return undefined as T;
+    }
+    try {
+        return JSON.parse(result) as T;
+    } catch (error) {
+        return result as unknown as T;
+    }
+};
 
 ipcRenderer.on('console', (event: Electron.IpcRendererEvent, ...args: any[]) => {
     console.log(...args);
@@ -48,8 +81,47 @@ window.onPageLoaded = (callback) => {
     });
 };
 
-window.getSharedObject = () => remote.getGlobal('sharedObject');
-window.dialog = remote.dialog;
+window.getSharedObject = () => {
+    const bridge = getAndroidBridge();
+    if (!bridge?.getSharedObject) {
+        return remote.getGlobal('sharedObject');
+    }
+    const result = bridge.getSharedObject();
+    if (typeof result === 'string') {
+        return parseBridgeResult<GlobalConfigurations>(result);
+    }
+    return result;
+};
+window.dialog = {
+    showOpenDialog: async (option: Electron.OpenDialogOptions) => {
+        const bridge = getAndroidBridge();
+        if (!bridge?.showOpenDialog) {
+            return remote.dialog.showOpenDialog(option);
+        }
+        return parseBridgeResult<Electron.OpenDialogReturnValue>(
+            bridge.showOpenDialog(JSON.stringify(option))
+        );
+    },
+    showSaveDialog: async (option: Electron.SaveDialogOptions) => {
+        const bridge = getAndroidBridge();
+        if (!bridge?.showSaveDialog) {
+            return remote.dialog.showSaveDialog(option);
+        }
+        return parseBridgeResult<Electron.SaveDialogReturnValue>(
+            bridge.showSaveDialog(JSON.stringify(option))
+        );
+    },
+    showSaveDialogSync: (option: Electron.SaveDialogOptions) => {
+        const bridge = getAndroidBridge();
+        if (!bridge?.showSaveDialogSync) {
+            return remote.dialog.showSaveDialogSync(option);
+        }
+        const result = parseBridgeResult<string | { filePath?: string }>(
+            bridge.showSaveDialogSync(JSON.stringify(option))
+        );
+        return typeof result === 'string' ? result : result?.filePath;
+    },
+};
 
 window.initNativeMenu = () => {
     nativeMenu.init();
@@ -61,19 +133,39 @@ window.getLang = (key: string) => {
 };
 
 window.ipcInvoke = (channel: string, ...args: any[]) => {
-    return ipcRenderer.invoke(channel, ...args);
+    const bridge = getAndroidBridge();
+    if (!bridge?.ipcInvoke) {
+        return ipcRenderer.invoke(channel, ...args);
+    }
+    const result = bridge.ipcInvoke(JSON.stringify({ channel, args }));
+    return Promise.resolve(parseBridgeResult(result));
 };
 
 window.ipcSend = (channel: string, ...args: any[]) => {
-    ipcRenderer.send(channel, ...args);
+    const bridge = getAndroidBridge();
+    if (!bridge?.ipcSend) {
+        ipcRenderer.send(channel, ...args);
+        return;
+    }
+    bridge.ipcSend(JSON.stringify({ channel, args }));
 };
 
 window.openEntryWebPage = () => {
-    shell.openExternal('https://playentry.org/download/offline');
+    const bridge = getAndroidBridge();
+    if (!bridge?.openEntryWebPage) {
+        window.open('https://playentry.org/download/offline', '_blank', 'noopener');
+        return;
+    }
+    bridge.openEntryWebPage();
 };
 
 window.openHardwarePage = () => {
-    ipcRenderer.send('openHardwareWindow');
+    const bridge = getAndroidBridge();
+    if (!bridge?.openHardwarePage) {
+        ipcRenderer.send('openHardwareWindow');
+        return;
+    }
+    bridge.openHardwarePage();
 };
 
 window.weightsPath = () => {
@@ -105,7 +197,12 @@ window.onLoadProjectFromMain = (callback: (project: Promise<IEntry.Project>) => 
 };
 
 window.checkPermission = async (type: 'microphone' | 'camera') => {
-    await ipcRenderer.invoke('checkPermission', type);
+    const bridge = getAndroidBridge();
+    if (!bridge?.checkPermission) {
+        await ipcRenderer.invoke('checkPermission', type);
+        return;
+    }
+    bridge.checkPermission(type);
 };
 
 window.getPapagoHeaderInfo = async () => {

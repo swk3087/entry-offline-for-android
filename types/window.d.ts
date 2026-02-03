@@ -10,7 +10,11 @@ declare interface Window extends Preload {
 }
 
 declare interface Preload {
-    dialog: Electron.Dialog;
+    dialog: {
+        showOpenDialog(options: Electron.OpenDialogOptions): Promise<Electron.OpenDialogReturnValue>;
+        showSaveDialog(options: Electron.SaveDialogOptions): Promise<Electron.SaveDialogReturnValue>;
+        showSaveDialogSync(options: Electron.SaveDialogOptions): string | undefined;
+    };
     ipcListen: (
         channel: string,
         listener: (event: Electron.IpcRendererEvent, ...args: any[]) => void
