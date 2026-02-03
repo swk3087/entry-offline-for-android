@@ -3,6 +3,26 @@ import StorageManager from './storageManager';
 import _get from 'lodash/get';
 const { dialog } = window;
 
+type AndroidDialogBridge = {
+    showOpenDialog?: (payload: string) => string;
+    showSaveDialog?: (payload: string) => string;
+    showSaveDialogSync?: (payload: string) => string;
+};
+
+const getAndroidDialogBridge = (): AndroidDialogBridge | undefined =>
+    (window as any).AndroidBridge || (window as any).Android;
+
+const parseBridgeResult = <T>(result: string | void): T => {
+    if (!result) {
+        return undefined as T;
+    }
+    try {
+        return JSON.parse(result) as T;
+    } catch (error) {
+        return result as unknown as T;
+    }
+};
+
 /**
  * Renderer Process 전역에서 사용할 수 있는 클래스.
  * ipc 통신이 한번이상 필요한 경우 이곳에 두지 않는다.
@@ -93,15 +113,38 @@ export default class {
     }
 
     static showOpenDialog(option: Electron.OpenDialogOptions) {
+        const bridge = getAndroidDialogBridge();
+        if (bridge?.showOpenDialog) {
+            return Promise.resolve(
+                parseBridgeResult<Electron.OpenDialogReturnValue>(
+                    bridge.showOpenDialog(JSON.stringify(option))
+                )
+            );
+        }
         return dialog.showOpenDialog(option);
     }
 
     static async showSaveDialogAsync(option: Electron.SaveDialogOptions) {
+        const bridge = getAndroidDialogBridge();
+        if (bridge?.showSaveDialog) {
+            const result = parseBridgeResult<Electron.SaveDialogReturnValue>(
+                bridge.showSaveDialog(JSON.stringify(option))
+            );
+            return result?.filePath;
+        }
         const path = await dialog.showSaveDialog(option);
         return path.filePath;
     }
 
     static showSaveDialog(option: Electron.SaveDialogOptions, callback: (filePath: string | undefined) => void) {
+        const bridge = getAndroidDialogBridge();
+        if (bridge?.showSaveDialogSync) {
+            const result = parseBridgeResult<string | { filePath?: string }>(
+                bridge.showSaveDialogSync(JSON.stringify(option))
+            );
+            callback(typeof result === 'string' ? result : result?.filePath);
+            return;
+        }
         const path = dialog.showSaveDialogSync(option);
         callback(path);
     }

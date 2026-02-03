@@ -7,6 +7,8 @@ import { Menu } from '@electron/remote';
  * - @electron/remote: Menu
  */
 
+const isAndroidRuntime = () => Boolean((window as any).AndroidBridge || (window as any).Android);
+
 const getTemplate = function() {
     const { getLang } = window;
     const template: MenuItemConstructorOptions[] = [
@@ -157,6 +159,9 @@ const getTemplate = function() {
 
 export default {
     init: () => {
+        if (isAndroidRuntime()) {
+            return;
+        }
         // require('@electron/remote/main').initialize();
         const template = getTemplate();
         const menu = Menu.buildFromTemplate(template);

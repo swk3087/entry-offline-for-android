@@ -6,7 +6,6 @@ import configInitialize from './utils/functions/configInitialize';
 import createLogger from './utils/functions/createLogger';
 
 import('./ipcMainHelper');
-import('./utils/functions/globalShortCutRegister');
 
 const logger = createLogger('main/main.ts');
 const commandLineOptions: Readonly<CommandLineOptions> = parseCommandLine(process.argv.slice(1));
@@ -18,6 +17,15 @@ const runtimeProperties: RuntimeGlobalProperties = {
 };
 
 global.sharedObject = Object.assign({}, runtimeProperties, configurations, commandLineOptions);
+const isAndroidRuntime = () => {
+    const sharedObject = (global as { sharedObject?: { androidPaths?: unknown; androidMediaAdapter?: unknown } })
+        .sharedObject;
+    return Boolean(sharedObject?.androidPaths || sharedObject?.androidMediaAdapter);
+};
+
+if (!isAndroidRuntime()) {
+    import('./utils/functions/globalShortCutRegister');
+}
 
 if (!app.requestSingleInstanceLock()) {
     logger.verbose('App is already running');
@@ -57,11 +65,13 @@ if (!app.requestSingleInstanceLock()) {
         });
 
         ipcMain.on('reload', function(event: Electron.IpcMainEvent, arg: any) {
-            if (process.platform === 'darwin') {
-                const menu = Menu.buildFromTemplate([]);
-                Menu.setApplicationMenu(menu);
-            } else {
-                mainWindow.window && mainWindow.window.setMenu(null);
+            if (!isAndroidRuntime()) {
+                if (process.platform === 'darwin') {
+                    const menu = Menu.buildFromTemplate([]);
+                    Menu.setApplicationMenu(menu);
+                } else {
+                    mainWindow.window && mainWindow.window.setMenu(null);
+                }
             }
             event.sender.reload();
         });
