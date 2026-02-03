@@ -14,6 +14,15 @@
 
 > 현재 `MainActivity`는 `file:///android_asset/index.html`을 로드합니다.
 
+### 빠른 동기화 (권장)
+아래 스크립트는 웹 빌드 결과와 필요한 리소스를 `assets`로 한번에 복사합니다.
+
+```
+// 프로젝트 루트에서 실행
+yarn webpack:dev
+powershell -ExecutionPolicy Bypass -File scripts/sync-android-assets.ps1
+```
+
 ### 2) entry-js/weights 같은 로컬 리소스
 - `src/preload/preload.ts`는 `androidPaths.assetPath`를 통해 `weights`와 `node_modules/entry-js`를 찾습니다.
 - 따라서 Android assets에 다음 구조를 맞춰 넣는 것을 권장합니다.

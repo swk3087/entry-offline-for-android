@@ -23,24 +23,22 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         val dataUri = result.data?.data
-        if (dataUri != null) {
-            binding.webView.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('android:filePicked', { detail: '${dataUri}' }));",
-                null
-            )
-        }
+        val safeUri = org.json.JSONObject.quote(dataUri?.toString() ?: "")
+        binding.webView.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('android:filePicked', { detail: ${safeUri} }));",
+            null
+        )
     }
 
     private val saveDocumentLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         val dataUri = result.data?.data
-        if (dataUri != null) {
-            binding.webView.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('android:fileSaved', { detail: '${dataUri}' }));",
-                null
-            )
-        }
+        val safeUri = org.json.JSONObject.quote(dataUri?.toString() ?: "")
+        binding.webView.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('android:fileSaved', { detail: ${safeUri} }));",
+            null
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,6 +67,9 @@ class MainActivity : ComponentActivity() {
             domStorageEnabled = true
             allowFileAccess = true
             allowContentAccess = true
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             cacheMode = WebSettings.LOAD_DEFAULT
             mediaPlaybackRequiresUserGesture = false
         }

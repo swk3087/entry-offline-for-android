@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.webkit.JavascriptInterface
 import androidx.core.content.ContextCompat
+import org.json.JSONArray
 import org.json.JSONObject
 
 class AndroidBridge(
@@ -58,18 +59,25 @@ class AndroidBridge(
             type = "*/*"
         }
         filePickerLauncher(intent)
-        return payload
+        return JSONObject()
+            .put("canceled", true)
+            .put("filePaths", JSONArray())
+            .toString()
     }
 
     @JavascriptInterface
     fun showSaveDialog(payload: String): String {
+        val defaultFileName = extractDefaultFileName(payload)
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
-            putExtra(Intent.EXTRA_TITLE, "entry-project")
+            putExtra(Intent.EXTRA_TITLE, defaultFileName)
         }
         fileSaverLauncher(intent)
-        return payload
+        return JSONObject()
+            .put("canceled", true)
+            .put("filePath", JSONObject.NULL)
+            .toString()
     }
 
     @JavascriptInterface
@@ -80,5 +88,18 @@ class AndroidBridge(
     @JavascriptInterface
     fun requestDownload(url: String) {
         downloadLauncher(url)
+    }
+
+    private fun extractDefaultFileName(payload: String): String {
+        return try {
+            val defaultPath = JSONObject(payload).optString("defaultPath")
+            if (defaultPath.isNullOrBlank()) {
+                "entry-project"
+            } else {
+                defaultPath.substringAfterLast('/').substringAfterLast('\\')
+            }
+        } catch (error: Exception) {
+            "entry-project"
+        }
     }
 }

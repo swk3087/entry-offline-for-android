@@ -1,7 +1,6 @@
 import IpcRendererHelper from './ipcRendererHelper';
 import StorageManager from './storageManager';
 import _get from 'lodash/get';
-const { dialog } = window;
 
 type AndroidDialogBridge = {
     showOpenDialog?: (payload: string) => string;
@@ -113,6 +112,10 @@ export default class {
     }
 
     static showOpenDialog(option: Electron.OpenDialogOptions) {
+        const dialogApi = window.dialog;
+        if (dialogApi?.showOpenDialog) {
+            return dialogApi.showOpenDialog(option);
+        }
         const bridge = getAndroidDialogBridge();
         if (bridge?.showOpenDialog) {
             return Promise.resolve(
@@ -121,10 +124,15 @@ export default class {
                 )
             );
         }
-        return dialog.showOpenDialog(option);
+        return window.dialog.showOpenDialog(option);
     }
 
     static async showSaveDialogAsync(option: Electron.SaveDialogOptions) {
+        const dialogApi = window.dialog;
+        if (dialogApi?.showSaveDialog) {
+            const result = await dialogApi.showSaveDialog(option);
+            return result?.filePath;
+        }
         const bridge = getAndroidDialogBridge();
         if (bridge?.showSaveDialog) {
             const result = parseBridgeResult<Electron.SaveDialogReturnValue>(
@@ -132,11 +140,18 @@ export default class {
             );
             return result?.filePath;
         }
-        const path = await dialog.showSaveDialog(option);
+        const path = await window.dialog.showSaveDialog(option);
         return path.filePath;
     }
 
     static showSaveDialog(option: Electron.SaveDialogOptions, callback: (filePath: string | undefined) => void) {
+        const dialogApi = window.dialog;
+        if (dialogApi?.showSaveDialog) {
+            Promise.resolve(dialogApi.showSaveDialog(option)).then((result) => {
+                callback(result?.filePath);
+            });
+            return;
+        }
         const bridge = getAndroidDialogBridge();
         if (bridge?.showSaveDialogSync) {
             const result = parseBridgeResult<string | { filePath?: string }>(
@@ -145,7 +160,7 @@ export default class {
             callback(typeof result === 'string' ? result : result?.filePath);
             return;
         }
-        const path = dialog.showSaveDialogSync(option);
+        const path = window.dialog.showSaveDialogSync(option);
         callback(path);
     }
 

@@ -18,3 +18,6 @@ src/*_build
 # specifics
 build/*.exe
 *.log
+/android/app/src/main/assets/**
+!/android/app/src/main/assets/index.html
+!/android/app/src/main/assets/android-bridge.js

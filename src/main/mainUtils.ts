@@ -705,7 +705,7 @@ export default class MainUtils {
             ? await resolveAdapterResult(androidMediaAdapter.getAudioMetadata(newSoundPath))
             : await musicMetadata.parseFile(newSoundPath, { duration: true });
         const duration = androidMediaAdapter?.getAudioMetadata
-            ? metadata?.duration || 0
+            ? (metadata as { duration?: number }).duration || 0
             : (metadata as musicMetadata.IAudioMetadata).format.duration || 0;
 
         return {
