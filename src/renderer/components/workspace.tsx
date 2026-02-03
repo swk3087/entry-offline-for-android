@@ -22,7 +22,6 @@ import { IModalState, ModalActionCreators } from '../store/modules/modal';
 import { IMapDispatchToProps, IMapStateToProps } from '../store';
 import DragAndDropContainer from './DragAndDropContainer';
 import EntryModalHelper from '../helper/entry/entryModalHelper';
-import ipcRendererHelper from '../helper/ipcRendererHelper';
 
 interface IProps extends IReduxDispatch, IReduxState {}
 
@@ -86,7 +85,6 @@ class Workspace extends Component<IProps> {
     }
 
     componentDidMount() {
-        IpcRendererHelper.checkUpdate();
         setTimeout(async () => {
             await this._waitFontLoad();
             try {
@@ -242,7 +240,7 @@ class Workspace extends Component<IProps> {
                 throw new Error('413: too large buffer size');
             }
 
-            const { duration, filename, filePath } = await ipcRendererHelper.saveSoundBuffer(
+            const { duration, filename, filePath } = await IpcRendererHelper.saveSoundBuffer(
                 buffer,
                 file.fileurl
             );
