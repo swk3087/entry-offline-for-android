@@ -25,6 +25,26 @@ type AndroidBridge = {
 const getAndroidBridge = (): AndroidBridge | undefined =>
     (window as any).AndroidBridge || (window as any).Android;
 
+type AndroidPaths = {
+    appPrivatePath?: string;
+    assetPath?: string;
+};
+
+const getAndroidPaths = (): AndroidPaths | undefined => {
+    const sharedObject = window.getSharedObject?.() as { androidPaths?: AndroidPaths } | undefined;
+    return sharedObject?.androidPaths;
+};
+
+const resolveAndroidAssetPath = (...parts: string[]) => {
+    const androidPaths = getAndroidPaths();
+    return androidPaths?.assetPath ? path.join(androidPaths.assetPath, ...parts) : undefined;
+};
+
+const resolveAndroidPrivatePath = (...parts: string[]) => {
+    const androidPaths = getAndroidPaths();
+    return androidPaths?.appPrivatePath ? path.join(androidPaths.appPrivatePath, ...parts) : undefined;
+};
+
 const parseBridgeResult = <T>(result: string | void): T => {
     if (!result) {
         return undefined as T;
@@ -160,12 +180,20 @@ window.openEntryWebPage = () => {
 
 window.weightsPath = () => {
     console.log(process.env.NODE_ENV);
+    const androidAssetPath = resolveAndroidAssetPath('weights');
+    if (androidAssetPath) {
+        return androidAssetPath;
+    }
     return process.env.NODE_ENV === 'production'
         ? path.resolve(process.resourcesPath, 'weights')
         : path.resolve(remote.app.getAppPath(), 'node_modules', 'entry-js', 'weights');
 };
 
 window.getEntryjsPath = () => {
+    const androidAssetPath = resolveAndroidAssetPath('node_modules', 'entry-js');
+    if (androidAssetPath) {
+        return androidAssetPath;
+    }
     return process.env.NODE_ENV === 'production'
         ? path.resolve(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'entry-js')
         : path.resolve(remote.app.getAppPath(), 'node_modules', 'entry-js');
@@ -173,6 +201,14 @@ window.getEntryjsPath = () => {
 
 window.getAppPathWithParams = (...params: string[]) => {
     console.log(process.env.NODE_ENV);
+    const androidAssetPath = resolveAndroidAssetPath(...params);
+    if (androidAssetPath) {
+        return androidAssetPath;
+    }
+    const androidPrivatePath = resolveAndroidPrivatePath(...params);
+    if (androidPrivatePath) {
+        return androidPrivatePath;
+    }
     return path.resolve(remote.app.getAppPath(), ...params);
 };
 

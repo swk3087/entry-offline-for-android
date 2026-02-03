@@ -6,6 +6,10 @@ import spawn from 'cross-spawn';
 import createLogger from './createLogger';
 
 const logger = createLogger('Validator');
+const isAndroidRuntime = () => {
+    const sharedObject = (global as { sharedObject?: { androidPaths?: unknown } }).sharedObject;
+    return Boolean(sharedObject?.androidPaths);
+};
 
 /**
  * 파일 변조 여부를 검사하는 검사체
@@ -46,6 +50,9 @@ function isValidAsarFile(): Promise<boolean> {
     const validatorPath = getValidatorPath();
     // production asar build 환경에서만 정상동작한다.
     if (process.env.NODE_ENV === 'development') {
+        return Promise.resolve(true);
+    }
+    if (isAndroidRuntime()) {
         return Promise.resolve(true);
     }
 
