@@ -7,7 +7,7 @@
 
     <application
         android:label="Entry Offline"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_launcher"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
