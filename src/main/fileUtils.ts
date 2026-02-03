@@ -28,11 +28,38 @@ type ZipAdapter = {
     ) => Promise<void> | void;
 };
 
+type AndroidMediaAdapter = {
+    resizeImage?: (options: {
+        sourcePath?: string;
+        sourceBuffer?: Buffer;
+        width: number;
+        height: number;
+        format?: 'png';
+    }) => Promise<Buffer> | Buffer;
+    probeSound?: (filePath: string) => Promise<ProbeData> | ProbeData;
+    convertToMp3?: (options: { sourcePath: string; targetPath: string }) => Promise<string> | string;
+};
+
 const logger = createLogger('main/fileUtils.ts');
-const ffmpegPath = ffmpegInstaller.path.replace('app.asar', 'app.asar.unpacked');
-const ffprobePath = ffprobeInstaller.path.replace('app.asar', 'app.asar.unpacked');
-ffmpeg.setFfmpegPath(ffmpegPath);
-ffmpeg.setFfprobePath(ffprobePath);
+
+const getAndroidMediaAdapter = (): AndroidMediaAdapter | undefined => {
+    const sharedObject = (global as { sharedObject?: { androidMediaAdapter?: AndroidMediaAdapter } })
+        .sharedObject;
+    return (
+        sharedObject?.androidMediaAdapter ||
+        (global as { androidMediaAdapter?: AndroidMediaAdapter }).androidMediaAdapter
+    );
+};
+
+const resolveAdapterResult = <T>(result: Promise<T> | T) =>
+    result instanceof Promise ? result : Promise.resolve(result);
+
+if (!getAndroidMediaAdapter()) {
+    const ffmpegPath = ffmpegInstaller.path.replace('app.asar', 'app.asar.unpacked');
+    const ffprobePath = ffprobeInstaller.path.replace('app.asar', 'app.asar.unpacked');
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    ffmpeg.setFfprobePath(ffprobePath);
+}
 
 const getZipAdapter = (): ZipAdapter | undefined => {
     const sharedObject = (global as { sharedObject?: { zipAdapter?: ZipAdapter } }).sharedObject;
@@ -216,7 +243,21 @@ export default class {
      * 이미지 버퍼를 섬네일용으로 리사이징한다.
      * 섬네일은 width 96px 기준으로, png 파일 확장자를 가진다.
      */
-    static createResizedImageBuffer(imageData: string | Buffer, dimension: Dimension) {
+    static async createResizedImageBuffer(imageData: string | Buffer, dimension: Dimension) {
+        const androidMediaAdapter = getAndroidMediaAdapter();
+        if (androidMediaAdapter?.resizeImage) {
+            const result = await resolveAdapterResult(
+                androidMediaAdapter.resizeImage({
+                    sourcePath: typeof imageData === 'string' ? imageData : undefined,
+                    sourceBuffer: imageData instanceof Buffer ? imageData : undefined,
+                    width: dimension.width,
+                    height: dimension.height,
+                    format: 'png',
+                })
+            );
+            return result;
+        }
+
         let imageResizeNativeImage: NativeImage;
         if (imageData instanceof Buffer || typeof imageData !== 'string') {
             imageResizeNativeImage = nativeImage.createFromBuffer(imageData as any);
@@ -329,8 +370,21 @@ export default class {
         fse.moveSync(src, dest, { overwrite: true });
     }
 
-    static getSoundInfo = (filePath: string, isExtCheck = true): Promise<ProbeData> =>
-        new Promise((resolve, reject) => {
+    static getSoundInfo = (filePath: string, isExtCheck = true): Promise<ProbeData> => {
+        const androidMediaAdapter = getAndroidMediaAdapter();
+        if (androidMediaAdapter?.probeSound) {
+            return resolveAdapterResult(androidMediaAdapter.probeSound(filePath)).then(
+                (probeData) => {
+                    const { format = {} } = probeData;
+                    const { format_name: formatName } = format;
+                    if (isExtCheck && formatName !== 'mp3') {
+                        throw new Error('업로드 파일이 MP3 파일이 아닙니다.');
+                    }
+                    return probeData;
+                }
+            );
+        }
+        return new Promise((resolve, reject) => {
             ffmpeg.ffprobe(filePath, (err: any, probeData: any) => {
                 if (err) {
                     return reject(err);
@@ -343,6 +397,7 @@ export default class {
                 resolve(probeData);
             });
         });
+    };
 
     static getExistSoundFilePath(sound: { filename: string; ext?: string }) {
         const basePath = Constants.resourceSoundPath(sound.filename);
@@ -367,6 +422,14 @@ export default class {
     };
 
     static convertStreamToMp3AndSave = (filePath: string, targetPath: string): Promise<string> => {
+        const androidMediaAdapter = getAndroidMediaAdapter();
+        if (androidMediaAdapter?.convertToMp3) {
+            this.ensureDirectoryExistence(targetPath);
+            return resolveAdapterResult(
+                androidMediaAdapter.convertToMp3({ sourcePath: filePath, targetPath })
+            );
+        }
+
         return new Promise((resolve, reject) => {
             // INFO : targetPath경로에 해당하는 디렉토리를 미리 만들어 줘야함
             this.ensureDirectoryExistence(targetPath);
