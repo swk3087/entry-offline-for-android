@@ -1,6 +1,12 @@
 import { ipcRenderer, MenuItemConstructorOptions } from 'electron';
 import { Menu } from '@electron/remote';
 
+/**
+ * Electron-only APIs used in this module:
+ * - electron: ipcRenderer, MenuItemConstructorOptions
+ * - @electron/remote: Menu
+ */
+
 const getTemplate = function() {
     const { getLang } = window;
     const template: MenuItemConstructorOptions[] = [
