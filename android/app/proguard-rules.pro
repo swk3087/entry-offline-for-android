@@ -1,0 +1,2 @@
+-keep class kr.kro.entryoffline.AndroidBridge { *; }
+-keepclassmembers class kr.kro.entryoffline.AndroidBridge { *; }

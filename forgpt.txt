@@ -1,0 +1,133 @@
+# Entry Offline Android 포팅 가이드 (요약 + 구체 지침)
+
+본 문서는 현재 Electron 기반 Entry Offline 프로젝트를 Android 앱(WebView 기반)으로 이식하기 위한
+지금까지 파악된 사항과 구체적인 개발 지침을 정리한 문서입니다.
+
+## 1) 현재 프로젝트에서 확인된 핵심 포인트
+
+- Electron 기반 프로젝트이며 배포 스크립트와 의존성이 Electron 중심으로 구성됨.
+- `src/main/main.ts`에서 Electron 메인 프로세스(app, ipcMain, Menu, dialog)를 사용.
+- `src/preload/preload.ts`에서 Android 브릿지를 이미 가정한 설계가 존재.
+  - `window.AndroidBridge` 또는 `window.Android` 객체를 통해 IPC/파일 대화상자/권한 체크 등을 처리.
+  - `androidPaths.assetPath`, `androidPaths.appPrivatePath`를 통한 경로 주입 가능.
+  - 오프라인 동작을 전제(`window.isOffline = true`).
+
+즉, Android에서는 WebView + Native Bridge로 Electron 기능을 대체하는 구조가 자연스럽다.
+
+## 2) Android Studio 프로젝트 생성
+
+1. Android Studio → New Project → Empty Activity
+2. Application ID(패키지명) 설정
+3. Minimum SDK: 23~26 이상 권장
+4. Target/Compile SDK: 최신(예: 34)
+5. Kotlin 권장 (Java도 가능)
+
+## 3) WebView 설정 (필수)
+
+- JavaScript 활성화: `settings.javaScriptEnabled = true`
+- DOM Storage: `settings.domStorageEnabled = true`
+- 로컬 파일 접근: `settings.allowFileAccess = true`
+- 필요 시:
+  - `allowFileAccessFromFileURLs`, `allowUniversalAccessFromFileURLs` 활성화
+
+### 로딩 방식
+- `file:///android_asset/index.html` 방식 또는
+- `WebViewAssetLoader`를 사용한 앱자산 호스팅 추천
+
+## 4) Android 권한 설정 (AndroidManifest.xml)
+
+- 네트워크 필요 시: `android.permission.INTERNET`
+- 파일/미디어 접근:
+  - Android 13+: `READ_MEDIA_IMAGES/VIDEO/AUDIO`
+  - Android 10~12: `READ_EXTERNAL_STORAGE` (가능하면 SAF로 대체)
+- 필요 시 `CAMERA`, `RECORD_AUDIO`
+
+## 5) JavaScript 인터페이스(브릿지) 설계
+
+WebView에 `addJavascriptInterface(AndroidBridge, "AndroidBridge")` 등록.
+`src/preload/preload.ts`와 동일한 메서드를 구현하는 것이 핵심.
+
+필요 메서드 예시:
+- `ipcInvoke(payload: string)` → JS에서 요청, JSON 응답
+- `ipcSend(payload: string)`
+- `getSharedObject()` → 경로/환경 정보 반환
+- `showOpenDialog`, `showSaveDialog`, `showSaveDialogSync`
+- `checkPermission(type)`
+- `openEntryWebPage()`
+
+JS에서는 결과가 JSON string이어도 파싱하도록 설계되어 있음.
+
+## 6) 로컬 리소스 / Asset 로딩
+
+- JS에서 `androidPaths.assetPath`를 활용하여 EntryJS, weights 등을 로드.
+- Android에서는:
+  - assetPath → `file:///android_asset/`
+  - appPrivatePath → `context.filesDir` 또는 `getExternalFilesDir()`
+
+## 7) 저장소 경로 전략
+
+- App Private: `context.filesDir`
+- Cache: `context.cacheDir`
+- 외부 공유/내보내기: SAF (Storage Access Framework)
+
+`getSharedObject()`로 JS에 경로 전달.
+
+## 8) 파일 피커 / 다운로드 처리
+
+- 파일 피커:
+  - `WebChromeClient.onShowFileChooser`에서 Activity Result API 사용
+  - `Intent.ACTION_OPEN_DOCUMENT`
+  - 결과 URI를 브릿지를 통해 JS에 전달
+
+- 다운로드:
+  - `DownloadManager` 사용 권장
+  - 파일 저장 경로는 SAF 또는 앱 전용 폴더
+
+## 9) 뒤로가기 / 상태바 처리
+
+- Back 버튼:
+  - `webView.canGoBack()` → true면 `goBack()`
+- 상태바/인셋:
+  - `WindowInsetsController`로 색상/아이콘 제어
+
+## 10) Electron 전용 기능 제거 → Android 대체 구조
+
+대체 매핑:
+- Electron app/ipcMain/dialog → Android Activity/Bridge
+- Electron preload/ipcRenderer → WebView JS interface
+
+추천 아키텍처:
+
+Android Activity
+ └─ WebView (renderer)
+ └─ AndroidBridge (JS Interface)
+     ├─ 파일 IO, 권한, 다운로드
+     ├─ 프로젝트 저장/불러오기
+     └─ sharedObject 반환
+
+## 11) 빌드/릴리즈 설정
+
+- `build.gradle`:
+  - `signingConfigs`에 keystore 등록
+  - `buildTypes.release`에 `minifyEnabled true`
+  - Proguard/R8 규칙 적용
+
+- Proguard 설정 예:
+  - `-keep class com.yourapp.AndroidBridge { *; }`
+
+- 릴리즈 서명:
+  - keytool로 keystore 생성
+  - CI/Gradle properties에서 비밀번호 관리
+
+## 12) 오프라인 동작 보장 전략
+
+- 정적 리소스는 assets에 포함
+- 프로젝트 메타/설정 → Room DB
+- 대용량 파일 → app private storage
+- 캐시/미디어 → cacheDir
+- 동기화 필요 시 WorkManager 활용
+
+---
+
+이 문서는 현재 코드 구조에서 확인된 Electron/Android 브릿지 구조를 기반으로,
+Android WebView 환경에서 필요한 실무 구현 지침을 정리한 것이다.
