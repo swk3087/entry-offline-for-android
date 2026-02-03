@@ -1,23 +1,8 @@
 # Entry-Offline for Android
 엔트리 오프라인을 안드로이드에서 실행하기 위한 패치용 래포입니다.
-- 패치 목록:
+openai codex를 사용합니다.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+---
 ![Entry Logo](src/renderer/resources/images/about/logo.png)
 ---
 ## What is Entry-Offline ?
