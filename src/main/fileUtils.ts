@@ -14,12 +14,33 @@ import get from 'lodash/get';
 type tarCreateOption = FileOptions & CreateOptions;
 type readFileOption = { encoding?: string | null; flag?: string } | string | undefined | null;
 type Dimension = { width: number; height: number };
+type ZipAdapter = {
+    pack: (
+        sourcePath: string,
+        targetPath: string,
+        options?: tarCreateOption,
+        fileList?: string[]
+    ) => Promise<void> | void;
+    unpack: (
+        sourcePath: string,
+        targetPath: string,
+        filterFunction?: (path: string) => boolean
+    ) => Promise<void> | void;
+};
 
 const logger = createLogger('main/fileUtils.ts');
 const ffmpegPath = ffmpegInstaller.path.replace('app.asar', 'app.asar.unpacked');
 const ffprobePath = ffprobeInstaller.path.replace('app.asar', 'app.asar.unpacked');
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
+
+const getZipAdapter = (): ZipAdapter | undefined => {
+    const sharedObject = (global as { sharedObject?: { zipAdapter?: ZipAdapter } }).sharedObject;
+    return sharedObject?.zipAdapter || (global as { androidZipAdapter?: ZipAdapter }).androidZipAdapter;
+};
+
+const resolveZipAdapterResult = (result: Promise<void> | void) =>
+    result instanceof Promise ? result : Promise.resolve();
 
 export const ImageResizeSize: { [key: string]: Dimension } = {
     thumbnail: { width: 96, height: 96 },
@@ -111,6 +132,14 @@ export default class {
         filterFunction?: (path: string) => boolean
     ) {
         return new Promise((resolve, reject) => {
+            const zipAdapter = getZipAdapter();
+            if (zipAdapter?.unpack) {
+                resolveZipAdapterResult(zipAdapter.unpack(sourcePath, targetPath, filterFunction))
+                    .then(() => resolve(sourcePath))
+                    .catch(reject);
+                return;
+            }
+
             process.once('uncaughtException', function(e) {
                 reject();
             });
@@ -151,6 +180,14 @@ export default class {
         options: tarCreateOption = {},
         fileList = ['.']
     ) {
+        const zipAdapter = getZipAdapter();
+        if (zipAdapter?.pack) {
+            await resolveZipAdapterResult(
+                zipAdapter.pack(sourcePath, targetPath, options, fileList)
+            );
+            return;
+        }
+
         const srcDirectoryPath = path.parse(sourcePath).dir;
         const defaultOption: tarCreateOption = {
             file: targetPath,

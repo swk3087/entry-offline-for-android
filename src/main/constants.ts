@@ -1,5 +1,5 @@
-import { app } from 'electron';
 import path from 'path';
+import PlatformPaths from './platformPaths';
 
 export type ReplaceStrategy = (fileUrl: string) => string | undefined;
 export default class {
@@ -108,7 +108,7 @@ export default class {
 
     // 사용위치는 join 을 사용 (프로젝트 외 경로)
     static get appPath() {
-        return app.getPath('userData');
+        return PlatformPaths.appPrivatePath();
     }
 
     static tempPathForExport(objectId: string) {
@@ -117,7 +117,7 @@ export default class {
 
     // 사용위치는 join 을 사용 (프로젝트 외 경로)
     static get tempPath() {
-        return path.join(this.appPath, 'temp', path.sep);
+        return PlatformPaths.tempPath();
     }
 
     static tempImagePath(filename: string) {
@@ -133,7 +133,7 @@ export default class {
     }
 
     static get resourcePath() {
-        return path.resolve(app.getAppPath(), 'src', 'renderer', 'resources', 'uploads');
+        return PlatformPaths.resourcePath();
     }
 
     static resourceImagePath(filename: string) {

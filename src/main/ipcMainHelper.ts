@@ -8,6 +8,7 @@ import checkUpdateRequest from './utils/network/checkUpdate';
 import createLogger from './utils/functions/createLogger';
 import isValidAsarFile, { getPapagoHeaderInfoByValidator } from './utils/functions/isValidAsarFile';
 import fileUtils from './fileUtils';
+import PlatformPaths from './platformPaths';
 require('@electron/remote/main').initialize();
 
 const logger = createLogger('main/ipcMainHelper.ts');
@@ -152,8 +153,7 @@ new (class {
         targetFilePath: string
     ) {
         const resolvedFilePath = path.join(...unresolvedFilePathArray);
-        const staticFilePath = path.resolve(
-            app.getAppPath(),
+        const staticFilePath = PlatformPaths.assetPath(
             'src',
             'main',
             'static',
@@ -184,10 +184,10 @@ new (class {
             typedPath = entryObject.fileurl;
             // 기본 이미지 및 사운드인 경우 상대경로이므로 기준 위치 수정
             if (typedPath.startsWith('renderer')) {
-                typedPath = path.resolve(app.getAppPath(), 'src', typedPath);
+                typedPath = PlatformPaths.assetPath('src', typedPath);
             } else if (typedPath.startsWith('../../..')) {
                 typedPath = typedPath.replace('../../../', '');
-                typedPath = path.resolve(app.getAppPath(), typedPath);
+                typedPath = PlatformPaths.assetPath(typedPath);
             }
         } else {
             switch (type) {
