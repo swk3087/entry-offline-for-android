@@ -1,6 +1,4 @@
 import RendererUtils from './rendererUtils';
-import StorageManager from './storageManager';
-import EntryModalHelper from './entry/entryModalHelper';
 
 const { ipcInvoke } = window;
 
@@ -104,31 +102,6 @@ export default class {
 
     static getTable(hashId: string) {
         return ipcInvoke('getTable', hashId);
-    }
-
-    static async checkUpdate() {
-        const [currentVersion, { hasNewVersion, recentVersion: latestVersion }] = await ipcInvoke<
-            [string, { hasNewVersion: string; recentVersion: string }]
-        >('checkUpdate');
-        /**
-         latestVersion properties
-         @property hasNewVersion{boolean} 요청을 보냈을때의 버전과 비교하여 업데이트가 필요한지 여부
-         @property padded_version{string} ex) '0002.0000.0002' 비교를 위한 패딩
-         @property version{string} ex) 2.0.2 원래 버전
-         @property _id{string} ex) 저장된 mongoDB 오브젝트 ID
-         */
-        console.log(
-            `currentVersion : ${currentVersion}\nrecentVersion: ${latestVersion}\nneedUpdate: ${hasNewVersion}`
-        );
-        const lastDontShowCheckedVersion = StorageManager.getLastDontShowVersion();
-        // 다시보지않음을 클릭하지 않았거나, 클릭했지만 당시보다 더 높은 버전이 나온 경우 출력
-        if (
-            latestVersion > currentVersion &&
-            (!lastDontShowCheckedVersion || latestVersion > lastDontShowCheckedVersion)
-        ) {
-            EntryModalHelper.showUpdateCheckModal(latestVersion);
-            StorageManager.setLastCheckedVersion(latestVersion);
-        }
     }
 
     static openEntryWebPage() {

@@ -4,7 +4,6 @@ import MainUtils from './mainUtils';
 import DataTableManager from './dataTable/dataTableManager';
 import Constants from './constants';
 import CommonUtils from './commonUtils';
-import checkUpdateRequest from './utils/network/checkUpdate';
 import createLogger from './utils/functions/createLogger';
 import isValidAsarFile, { getPapagoHeaderInfoByValidator } from './utils/functions/isValidAsarFile';
 import fileUtils from './fileUtils';
@@ -41,7 +40,6 @@ new (class {
         ipcMain.handle('saveExcel', this.saveExcel.bind(this));
         ipcMain.handle('writeFile', this.writeFile.bind(this));
         ipcMain.handle('openUrl', this.openUrl.bind(this));
-        ipcMain.handle('checkUpdate', this.checkUpdate.bind(this));
         ipcMain.handle('quit', this.quitApplication.bind(this));
         ipcMain.handle('checkPermission', this.checkPermission.bind(this));
         ipcMain.handle('getOpenSourceText', () => ''); // 별다른 표기 필요없음
@@ -240,11 +238,6 @@ new (class {
             console.log(e);
             return false;
         }
-    }
-
-    async checkUpdate() {
-        const data = await checkUpdateRequest();
-        return [global.sharedObject.version, data];
     }
 
     async saveSoundBuffer(event: IpcMainInvokeEvent, buffer: ArrayBuffer, prevFileUrl: string) {
