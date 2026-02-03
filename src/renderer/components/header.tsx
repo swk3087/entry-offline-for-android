@@ -66,15 +66,14 @@ class Header extends Component<IProps, IState> {
     get helpList(): DropDownItemPair[] {
         const { persist } = this.props;
         const { mode } = persist;
-
-        return [
+        const list: DropDownItemPair[] = [
             [RendererUtils.getLang('Workspace.block_helper'), 'help_block'],
-            (mode === 'workspace' ?
-                    [RendererUtils.getLang('Workspace.hardware_guide'), 'help_hardware'] :
-                    [RendererUtils.getLang('Workspace.robot_guide'), 'help_robot']
-            ),
+            ...(mode === 'practical_course'
+                ? [[RendererUtils.getLang('Workspace.robot_guide'), 'help_robot'] as DropDownItemPair]
+                : []),
             [RendererUtils.getLang('Workspace.python_guide'), 'help_python'],
         ];
+        return list;
     }
 
     get modeList(): DropDownItemPair[] {
@@ -199,9 +198,6 @@ class Header extends Component<IProps, IState> {
             Entry.dispatchEvent('showBlockHelper');
         } else {
             switch (key) {
-                case 'help_hardware':
-                    RendererUtils.downloadHardwareGuide();
-                    break;
                 case 'help_robot':
                     RendererUtils.downloadRobotGuide();
                     break;

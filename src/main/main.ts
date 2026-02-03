@@ -1,5 +1,4 @@
 import { app, dialog, ipcMain, Menu, systemPreferences } from 'electron';
-import HardwareWindowManager from './views/hardwareWindowManager';
 import MainWindowManager from './views/mainWindowManager';
 import AboutWindowManager from './views/aboutWindowManager';
 import parseCommandLine from './utils/functions/parseCommandLine';
@@ -41,7 +40,6 @@ if (!app.requestSingleInstanceLock()) {
 
     app.once('ready', () => {
         mainWindow = new MainWindowManager(commandLineOptions);
-        const hardwareWindow = new HardwareWindowManager();
         const aboutWindow = new AboutWindowManager(mainWindow.window);
 
         app.on('second-instance', (event, commandLine, workingDirectory) => {
@@ -59,19 +57,13 @@ if (!app.requestSingleInstanceLock()) {
         });
 
         ipcMain.on('reload', function(event: Electron.IpcMainEvent, arg: any) {
-            if (!hardwareWindow.isCurrentWebContentsId(event.sender.id)) {
-                if (process.platform === 'darwin') {
-                    const menu = Menu.buildFromTemplate([]);
-                    Menu.setApplicationMenu(menu);
-                } else {
-                    mainWindow.window && mainWindow.window.setMenu(null);
-                }
+            if (process.platform === 'darwin') {
+                const menu = Menu.buildFromTemplate([]);
+                Menu.setApplicationMenu(menu);
+            } else {
+                mainWindow.window && mainWindow.window.setMenu(null);
             }
             event.sender.reload();
-        });
-
-        ipcMain.on('openHardwareWindow', function() {
-            hardwareWindow.openHardwareWindow();
         });
 
         ipcMain.on('openAboutWindow', function() {

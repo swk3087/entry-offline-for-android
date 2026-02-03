@@ -16,7 +16,6 @@ type AndroidBridge = {
     ipcSend?: (payload: string) => void;
     getSharedObject?: () => string | GlobalConfigurations;
     openEntryWebPage?: () => void;
-    openHardwarePage?: () => void;
     checkPermission?: (type: 'microphone' | 'camera') => void;
     showOpenDialog?: (payload: string) => string;
     showSaveDialog?: (payload: string) => string;
@@ -157,15 +156,6 @@ window.openEntryWebPage = () => {
         return;
     }
     bridge.openEntryWebPage();
-};
-
-window.openHardwarePage = () => {
-    const bridge = getAndroidBridge();
-    if (!bridge?.openHardwarePage) {
-        ipcRenderer.send('openHardwareWindow');
-        return;
-    }
-    bridge.openHardwarePage();
 };
 
 window.weightsPath = () => {

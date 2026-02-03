@@ -110,10 +110,6 @@ export default class {
         return ipcInvoke('getTable', hashId);
     }
 
-    static openHardwarePage() {
-        window.openHardwarePage();
-    }
-
     static async checkUpdate() {
         const [currentVersion, { hasNewVersion, recentVersion: latestVersion }] = await ipcInvoke<
             [string, { hasNewVersion: string; recentVersion: string }]
