@@ -16,6 +16,56 @@ const logger = createLogger('main/mainUtils.ts');
 const fsp = fs.promises;
 
 type ConvertResult = { filePath: string; svgPath?: string | undefined };
+type AndroidMediaAdapter = {
+    resizeImage?: (options: {
+        sourcePath?: string;
+        sourceBuffer?: Buffer;
+        width: number;
+        height: number;
+        format?: 'png';
+    }) => Promise<Buffer> | Buffer;
+    getImageSize?: (filePath: string) => Promise<{ width: number; height: number }> | {
+        width: number;
+        height: number;
+    };
+    getAudioMetadata?: (
+        filePath: string
+    ) => Promise<{ duration?: number }> | { duration?: number };
+};
+
+const getAndroidMediaAdapter = (): AndroidMediaAdapter | undefined => {
+    const sharedObject = (global as { sharedObject?: { androidMediaAdapter?: AndroidMediaAdapter } })
+        .sharedObject;
+    return (
+        sharedObject?.androidMediaAdapter ||
+        (global as { androidMediaAdapter?: AndroidMediaAdapter }).androidMediaAdapter
+    );
+};
+
+const resolveAdapterResult = <T>(result: Promise<T> | T) =>
+    result instanceof Promise ? result : Promise.resolve(result);
+
+const normalizeDimension = (
+    dimension: { width?: number; height?: number },
+    fallback: { width: number; height: number }
+) => ({
+    width: dimension.width || fallback.width,
+    height: dimension.height || fallback.height,
+});
+
+const getImageDimensions = async (
+    filePath: string,
+    fallback: { width: number; height: number }
+) => {
+    const androidMediaAdapter = getAndroidMediaAdapter();
+    if (androidMediaAdapter?.getImageSize) {
+        const dimension = await resolveAdapterResult(androidMediaAdapter.getImageSize(filePath));
+        return normalizeDimension(dimension, fallback);
+    }
+
+    const { width, height } = imageSize(filePath);
+    return normalizeDimension({ width, height }, fallback);
+};
 /**
  * Main Process 에서 발생하는 로직들을 담당한다.
  * ipcMain 을 import 하여 사용하지 않는다. renderer Process 간 이벤트 관리는 ipcMainHelper 가 한다.
@@ -468,10 +518,13 @@ export default class MainUtils {
             `${newFileId}${originalFileExt}`
         );
 
-        const { width, height } = imageSize(filePath);
         const { width: defaultWidth, height: defaultHeight } = ImageResizeSize.picture;
+        const { width, height } = await getImageDimensions(filePath, {
+            width: defaultWidth,
+            height: defaultHeight,
+        });
         await FileUtils.writeFile(
-            FileUtils.createResizedImageBuffer(filePath, {
+            await FileUtils.createResizedImageBuffer(filePath, {
                 width: width || defaultWidth,
                 height: height || defaultHeight,
             }),
@@ -489,7 +542,7 @@ export default class MainUtils {
             await FileUtils.copyFile(thumbnailPath, newThumbnailPath);
         } else {
             await FileUtils.writeFile(
-                FileUtils.createResizedImageBuffer(filePath, ImageResizeSize.thumbnail),
+                await FileUtils.createResizedImageBuffer(filePath, ImageResizeSize.thumbnail),
                 newThumbnailPath
             );
         }
@@ -508,7 +561,7 @@ export default class MainUtils {
             filename: newFileId,
             fileurl: newPicturePath.replace(/\\/gi, '/'),
             extension: originalFileExt,
-            dimension: imageSize(newPicturePath),
+            dimension: await getImageDimensions(newPicturePath, ImageResizeSize.picture),
             imageType,
         };
     }
@@ -652,7 +705,7 @@ export default class MainUtils {
                 await Promise.all([
                     FileUtils.writeFile(image, imagePath),
                     FileUtils.writeFile(
-                        FileUtils.createResizedImageBuffer(image, ImageResizeSize.thumbnail),
+                        await FileUtils.createResizedImageBuffer(image, ImageResizeSize.thumbnail),
                         thumbnailPath
                     ),
                     svgWritePromise,
@@ -692,7 +745,7 @@ export default class MainUtils {
                     name: pictureId,
                     filename: pictureId,
                     fileurl: imagePath.replace(/\\/gi, '/'),
-                    dimension: imageSize(imagePath),
+                    dimension: await getImageDimensions(imagePath, ImageResizeSize.picture),
                     imageType: ext,
                 });
             } catch (e) {
@@ -721,7 +774,13 @@ export default class MainUtils {
 
         await FileUtils.copyFile(filePath, newSoundPath);
 
-        const metadata = await musicMetadata.parseFile(newSoundPath, { duration: true });
+        const androidMediaAdapter = getAndroidMediaAdapter();
+        const metadata = androidMediaAdapter?.getAudioMetadata
+            ? await resolveAdapterResult(androidMediaAdapter.getAudioMetadata(newSoundPath))
+            : await musicMetadata.parseFile(newSoundPath, { duration: true });
+        const duration = androidMediaAdapter?.getAudioMetadata
+            ? metadata?.duration || 0
+            : (metadata as musicMetadata.IAudioMetadata).format.duration || 0;
 
         return {
             _id: CommonUtils.generateHash(),
@@ -731,7 +790,7 @@ export default class MainUtils {
             ext: originalFileExt,
             fileurl: newSoundPath,
             path: newSoundPath, //See EntryUtils#loadSound
-            duration: Math.round((metadata.format.duration || 0) * 10) / 10,
+            duration: Math.round(duration * 10) / 10,
         };
     }
 
