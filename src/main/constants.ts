@@ -2,6 +2,16 @@ import path from 'path';
 import PlatformPaths from './platformPaths';
 
 export type ReplaceStrategy = (fileUrl: string) => string | undefined;
+
+type AndroidPaths = {
+    assetPath?: string;
+    resourcePath?: string;
+};
+
+const getAndroidPaths = (): AndroidPaths | undefined => {
+    const sharedObject = (global as { sharedObject?: { androidPaths?: AndroidPaths } }).sharedObject;
+    return sharedObject?.androidPaths;
+};
 export default class {
     static get replaceStrategy(): { [key: string]: ReplaceStrategy } {
         return {
@@ -133,6 +143,13 @@ export default class {
     }
 
     static get resourcePath() {
+        const androidPaths = getAndroidPaths();
+        if (androidPaths?.resourcePath) {
+            return androidPaths.resourcePath;
+        }
+        if (androidPaths?.assetPath) {
+            return path.join(androidPaths.assetPath, 'src', 'renderer', 'resources', 'uploads');
+        }
         return PlatformPaths.resourcePath();
     }
 
