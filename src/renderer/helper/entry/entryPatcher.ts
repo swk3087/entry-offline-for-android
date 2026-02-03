@@ -69,19 +69,6 @@ export default function() {
         return `${Constants.resourceImagePath(filename)  }${filename}.${imageType}`;
     };
 
-    const openHardwarePage = function() {
-        const roomId = localStorage.getItem('entryhwRoomId');
-        if (roomId) {
-            RendererUtils.getSharedObject().roomIds = [roomId];
-        }
-
-        IpcRendererHelper.openHardwarePage();
-        Entry.hw._initSocket();
-    };
-
-    Entry.HW.prototype.downloadConnector = openHardwarePage;
-    Entry.HW.prototype.openHardwareProgram = openHardwarePage;
-
     Entry.HW.prototype.downloadGuide = function() {
         if (EntryStatic.isPracticalCourse) {
             RendererUtils.downloadRobotGuide();
