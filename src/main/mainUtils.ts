@@ -10,6 +10,7 @@ import Constants, { ReplaceStrategy } from './constants';
 import CommonUtils from './commonUtils';
 import BlockConverter from './blockConverter';
 import createLogger from './utils/functions/createLogger';
+import PlatformPaths from './platformPaths';
 
 const logger = createLogger('main/mainUtils.ts');
 const fsp = fs.promises;
@@ -59,7 +60,9 @@ export default class MainUtils {
      * 이는 새 엔트리 프로젝트를 만들거나 ent 파일이 새로 로드되는 경우 실행된다.
      */
     static resetSaveDirectory() {
-        return FileUtils.removeDirectoryRecursive(path.resolve(app.getPath('userData'), 'temp'));
+        return FileUtils.removeDirectoryRecursive(
+            path.resolve(PlatformPaths.appPrivatePath(), 'temp')
+        );
     }
 
     /**
@@ -69,7 +72,7 @@ export default class MainUtils {
      * @return {Promise} 성공시 resolve(), 실패시 reject(err)
      */
     static async saveProject(project: ObjectLike, destinationPath: string) {
-        const sourcePath = app.getPath('userData');
+        const sourcePath = PlatformPaths.appPrivatePath();
         if (destinationPath.indexOf('.ent') === -1) {
             throw new Error('.ent only accepted');
         }
