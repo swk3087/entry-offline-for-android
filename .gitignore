@@ -21,5 +21,10 @@ build/*.exe
 /android/app/src/main/assets/**
 !/android/app/src/main/assets/index.html
 !/android/app/src/main/assets/android-bridge.js
-android/app/build/**
-android/.gradle/**
+android/app/build/
+android/.gradle/
+android/.idea/
+android/app/release/
+android/.gradle/
+android/.idea/
+android/app/release/

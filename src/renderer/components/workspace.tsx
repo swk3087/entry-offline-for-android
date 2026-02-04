@@ -33,22 +33,37 @@ class Workspace extends Component<IProps> {
     private isFirstRender = true;
     private isSavingCanvasData = false;
     private isSaveProject = false;
-    private defaultInitOption = {
-        type: 'workspace',
-        backpackDisable: true,
-        libDir: '../../../node_modules',
-        defaultDir: '../../renderer/resources',
-        entryDir: '/entry-js',
-        baseUrl:
-            process.env.NODE_ENV === 'development'
-                ? 'https://entry2-dev.playentry.org'
-                : 'https://playentry.org',
-        fonts: EntryStatic.fonts,
-        textCodingEnable: true,
-        dataTableEnable: true,
-        aiLearningEnable: true,
-        paintMode: 'entry-paint',
-    };
+    private defaultInitOption = (() => {
+        const sharedObject = RendererUtils.getSharedObject() as GlobalConfigurations & {
+            androidPaths?: { assetPath?: string };
+        };
+        const androidAssetPath = sharedObject?.androidPaths?.assetPath;
+        const normalizedAssetPath =
+            androidAssetPath && androidAssetPath.endsWith('/')
+                ? androidAssetPath.slice(0, -1)
+                : androidAssetPath;
+        const isAndroid = Boolean(normalizedAssetPath);
+
+        return {
+            type: 'workspace',
+            backpackDisable: true,
+            libDir: isAndroid ? `${normalizedAssetPath}/node_modules` : '../../../node_modules',
+            defaultDir: isAndroid
+                ? `${normalizedAssetPath}/renderer/resources`
+                : '../../renderer/resources',
+            entryDir: isAndroid ? `${normalizedAssetPath}/node_modules/entry-js` : '/entry-js',
+            baseUrl: isAndroid
+                ? normalizedAssetPath
+                : process.env.NODE_ENV === 'development'
+                    ? 'https://entry2-dev.playentry.org'
+                    : 'https://playentry.org',
+            fonts: EntryStatic.fonts,
+            textCodingEnable: true,
+            dataTableEnable: true,
+            aiLearningEnable: true,
+            paintMode: 'entry-paint',
+        };
+    })();
     state = {
         programLanguageMode: 'block',
         executionStatus: {

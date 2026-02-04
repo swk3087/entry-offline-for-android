@@ -1,36 +1,33 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
 }
 
 android {
-    namespace = "kr.kro.entryoffline"
-    compileSdk = 34
+    namespace "kr.kro.entryoffline"
+    compileSdk 34
 
     defaultConfig {
-        applicationId = "kr.kro.entryoffline"
-        minSdk = 23
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        applicationId "kr.kro.entryoffline"
+        minSdk 23
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
     }
 
     buildTypes {
         release {
-            minifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
         debug {
-            minifyEnabled = false
+            minifyEnabled false
         }
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
@@ -38,13 +35,75 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
+        viewBinding true
     }
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("androidx.activity:activity-ktx:1.8.2")
-    implementation("androidx.webkit:webkit:1.9.0")
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "androidx.activity:activity-ktx:1.8.2"
+    implementation "androidx.webkit:webkit:1.9.0"
+}
+
+def repoRoot = rootProject.rootDir.parentFile
+def assetsDir = file("src/main/assets")
+
+tasks.register("buildWebAssetsProd", Exec) {
+    workingDir repoRoot
+    commandLine "cmd", "/c", "yarn", "webpack:prod"
+}
+
+tasks.register("cleanAndroidAssets", Delete) {
+    delete new File(assetsDir, "renderer_build"),
+        new File(assetsDir, "renderer"),
+        new File(assetsDir, "node_modules"),
+        new File(assetsDir, "weights")
+}
+
+tasks.register("syncAndroidAssets", Copy) {
+    dependsOn "cleanAndroidAssets"
+
+    doFirst {
+        def rendererBuild = new File(repoRoot, "src/renderer_build")
+        if (!rendererBuild.exists()) {
+            throw new GradleException("Missing renderer build at ${rendererBuild.path}. Run `yarn webpack:dev` first.")
+        }
+    }
+
+    from(new File(repoRoot, "src/renderer_build")) {
+        into "renderer_build"
+    }
+    from(new File(repoRoot, "src/renderer/resources")) {
+        into "renderer/resources"
+    }
+
+    from(new File(repoRoot, "node_modules/entry-js")) {
+        into "node_modules/entry-js"
+    }
+    from(new File(repoRoot, "node_modules/entry-tool")) {
+        into "node_modules/entry-tool"
+    }
+    from(new File(repoRoot, "node_modules/lodash")) {
+        into "node_modules/lodash"
+    }
+    from(new File(repoRoot, "node_modules/jquery")) {
+        into "node_modules/jquery"
+    }
+    from(new File(repoRoot, "node_modules/literallycanvas-mobile")) {
+        into "node_modules/literallycanvas-mobile"
+    }
+    from(new File(repoRoot, "node_modules/@entrylabs/legacy-video")) {
+        into "node_modules/@entrylabs/legacy-video"
+    }
+    from(new File(repoRoot, "node_modules/entry-js/weights")) {
+        into "weights"
+    }
+
+    into assetsDir
+}
+
+preBuild.dependsOn syncAndroidAssets
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn buildWebAssetsProd
 }
